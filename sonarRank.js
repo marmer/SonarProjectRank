@@ -4,6 +4,8 @@
 // @version      0.1
 // @description  try to take over the world!
 // @author       You
+// @updateURL
+// @downloadURL
 // @match        https://sonar.prod.ccs.gematik.solutions/projects**
 // @icon         https://sonar.prod.ccs.gematik.solutions/apple-touch-icon.png
 // @require      https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.min.js
@@ -12,6 +14,10 @@
 
 const metrics = ["sqale_index", "coverage"]
 const topCount = 5;
+
+function threeMonthAgo() {
+  return dateFns.format(dateFns.subDays(new Date(), 90), "YYYY-MM-DD")
+}
 
 /**
  * Diff
@@ -47,9 +53,6 @@ const topCount = 5;
  * }} Diff
  */
 
-function threeMonthAgo() {
-  return dateFns.format(dateFns.subDays(new Date(), 90), "YYYY-MM-DD")
-}
 
 function fetchAllComponents() {
   return fetch("/api/components/search?ps=500&qualifiers=APP,TRK")
@@ -185,14 +188,13 @@ function showTopTechnicalDeptImprovementFor(diffs) {
       1)}% changed relative to ${it.measures.sqale_index.newEntry.date.substring(
       0,
       10)}
-\t ${it.measures?.sqale_index?.deltaAbsolute.toFixed(
-      1)} changed absolute to ${it.measures.sqale_index.newEntry.date.substring(
+\t ${it.measures?.sqale_index?.deltaAbsolute} changed absolute to ${it.measures.sqale_index.newEntry.date.substring(
       0,
       10)}
-\t ${it.measures.sqale_index.newEntry.value}% - @${it.measures.sqale_index.newEntry.date.substring(
+\t ${it.measures.sqale_index.newEntry.value} - @${it.measures.sqale_index.newEntry.date.substring(
       0,
       10)}
-\t ${it.measures.sqale_index.oldEntry.value}% - @${it.measures.sqale_index.oldEntry.date.substring(
+\t ${it.measures.sqale_index.oldEntry.value} - @${it.measures.sqale_index.oldEntry.date.substring(
       0,
       10)}
 \t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${it.componentKey}`))
