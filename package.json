@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "jest": "^29.0.1",
+    "@types/jest": "^29.0.0",
+    "greasemonkey": "^1.0.3",
+    "date-fns": "1.30.1"
+  },
+  "scripts": {
+    "test": "jest"
+  }
+}
