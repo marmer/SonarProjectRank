@@ -4,14 +4,14 @@
 // @version      0.1
 // @description  try to take over the world!
 // @author       You
-// @match        https://sonar.prod.ccs.gematik.solutions/projects
+// @match        https://sonar.prod.ccs.gematik.solutions/projects**
 // @icon         https://sonar.prod.ccs.gematik.solutions/apple-touch-icon.png
 // @require      https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.min.js
 // @grant        none
 // ==/UserScript==
 
 const metrics = ["sqale_index", "coverage"]
-const topCount = 10;
+const topCount = 5;
 
 /**
  * Diff
@@ -56,8 +56,6 @@ function fetchAllComponents() {
     .then(response => response.text())
     .then(JSON.parse)
     .then(responseBody => responseBody.components)
-  // TODO: marmer 02.09.2022 remove this temporary helper for better overview.)
-  // .then(components => components.filter(it => it.key === "de.gematik.titus:titus"))
 }
 
 function fetchMetricsFor(component) {
@@ -172,13 +170,44 @@ function showTopAbsoluteTechnicalDeptFor(diffs) {
 /**
  * @param {Diff[]} diffs
  */
+function showTopTechnicalDeptImprovementFor(diffs) {
+  console.log(`=== Top ${topCount} Coverage Improvement ===`)
+
+  diffs
+    .filter(it => hasCoverage(it) && it.measures.sqale_index.deltaAbsolute)
+    .sort((a, b) => {
+        return a.measures?.sqale_index?.deltaRelative - b.measures?.sqale_index?.deltaRelative;
+      }
+    )
+    .slice(0, topCount)
+    .forEach((it, index) => console.log(`${index + 1}: "${it.componentName}" - "${it.componentKey}"
+\t ${it.measures?.sqale_index?.deltaRelative.toFixed(
+      1)}% changed relative to ${it.measures.sqale_index.newEntry.date.substring(
+      0,
+      10)}
+\t ${it.measures?.sqale_index?.deltaAbsolute.toFixed(
+      1)} changed absolute to ${it.measures.sqale_index.newEntry.date.substring(
+      0,
+      10)}
+\t ${it.measures.sqale_index.newEntry.value}% - @${it.measures.sqale_index.newEntry.date.substring(
+      0,
+      10)}
+\t ${it.measures.sqale_index.oldEntry.value}% - @${it.measures.sqale_index.oldEntry.date.substring(
+      0,
+      10)}
+\t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${it.componentKey}`))
+}
+
+/**
+ * @param {Diff[]} diffs
+ */
 function showRanks(diffs) {
   console.clear()
+  console.log(`This Script shows only Projects with changes since ${threeMonthAgo()}`)
   showTopAbsoluteCoverageFor(diffs);
   showTopCoverageImprovementFor(diffs);
   showTopAbsoluteTechnicalDeptFor(diffs);
-  // TODO: marmer 02.09.2022 Implement
-  // showTopTechnicalDeptImprovementFor(diffs);
+  showTopTechnicalDeptImprovementFor(diffs);
 }
 
 (function () {
