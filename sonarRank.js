@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Sonar Project Rank
 // @namespace    http://tampermonkey.net/
-// @version      0.1
-// @description  try to take over the world!
-// @author       You
-// @updateURL
-// @downloadURL
+// @version      1.0
+// @description  Prints project ranks and improvements based on changes within the last 90 days
+// @author       MarMer
+// @updateURL    https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
+// @downloadURL  https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
 // @match        https://sonar.prod.ccs.gematik.solutions/projects**
 // @icon         https://sonar.prod.ccs.gematik.solutions/apple-touch-icon.png
 // @require      https://cdnjs.cloudflare.com/ajax/libs/date-fns/1.30.1/date_fns.min.js
