@@ -20,37 +20,62 @@ function threeMonthAgo() {
 }
 
 /**
- * Diff
- * @typedef {{
- *   componentKey: String,
- *   componentName: String,
- *   measures: {
- *    sqale_index: {
+ * Shuffles array in place. ES6 version. From https://stackoverflow.com/questions/6274339/how-can-i-shuffle-an-array
+ * @param {Array} a items An array containing the items.
+ */
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/**
+ * DiffEntry
+ * @typedef {
+ *   {
  *      deltaAbsolute: Number,
  *      deltaRelative: Number,
  *      oldEntry: {
  *        date: String,
- *        value: Number
+ *        value: Number,
  *      },
  *      newEntry: {
  *        date: String,
- *        value: Number
- *      }
- *    },
- *    ncloc: {
- *      deltaAbsolute: Number,
- *      deltaRelative: Number,
- *      oldEntry: {
- *        date: String,
- *        value: Number
- *      },
- *      newEntry: {
- *        date: String,
- *        value: Number
+ *        value: Number,
  *      }
  *    }
- *   }
- * }} Diff
+ *  } DiffEntry
+ */
+
+/**
+ * Diff
+ * @typedef {
+ *  {
+ *    componentKey: String,
+ *    componentName: String,
+ *    measures: {
+ *    sqale_index: DiffEntry,
+ *    sqale_indexPer1000Loc: DiffEntry,
+ *    ncloc: DiffEntry
+ *    }?
+ *  }
+ * } Diff
+ */
+
+/**
+ * IncompleteDiff
+ * @typedef {
+ *  {
+ *    componentKey: String,
+ *    componentName: String,
+ *    measures: {
+ *    sqale_index: DiffEntry,
+ *    ncloc: DiffEntry
+ *    }?
+ *  }
+ * } IncompleteDiff
  */
 
 
@@ -73,26 +98,91 @@ function metricsUriComponent() {
   return encodeURIComponent(metrics.reduce((a, b) => `${a},${b}`));
 }
 
+/**
+ *
+ * @param {IncompleteDiff} metricDiff
+ * @returns {Diff}
+ */
+function addSqualeIndexPer1000Loc(metricDiff) {
+
+  if (!(metricDiff?.measures?.sqale_index && metricDiff?.measures?.ncloc)) {
+    return
+  }
+
+  const oldValuePer1000Loc =
+    (metricDiff?.measures?.sqale_index?.oldEntry?.value &&
+      metricDiff?.measures?.ncloc?.oldEntry?.value)
+      ?
+      metricDiff.measures.sqale_index.oldEntry.value /
+      metricDiff.measures.ncloc.oldEntry.value * 1000
+      :
+      undefined
+
+  const newValuePer1000Loc =
+    (metricDiff?.measures?.sqale_index?.newEntry?.value
+      && metricDiff?.measures?.ncloc?.newEntry?.value)
+      ?
+      metricDiff.measures.sqale_index.newEntry.value /
+      metricDiff.measures.ncloc.newEntry.value * 1000
+      :
+      undefined
+
+  const deltaAbsolutePer1000Loc = newValuePer1000Loc - oldValuePer1000Loc
+
+  const deltaRelativePer1000Loc = deltaAbsolutePer1000Loc ?
+    (100 * deltaAbsolutePer1000Loc / oldValuePer1000Loc) :
+    undefined
+
+  metricDiff.measures.sqale_indexPer1000Loc = {
+    deltaAbsolute: metricDiff.measures.sqale_index.newEntry.valuePer1000Loc
+      - metricDiff.measures.sqale_index.oldEntry.valuePer1000Loc,
+    deltaRelative: deltaRelativePer1000Loc,
+    oldEntry: {
+      date: metricDiff
+        .measures.sqale_index.oldEntry.date,
+      value: oldValuePer1000Loc,
+    },
+    newEntry: {
+      date: metricDiff
+        .measures.sqale_index.newEntry.date,
+      value: newValuePer1000Loc,
+    }
+  };
+}
+
+/**
+ * @param component
+ * @param componentMetricResponse
+ * @return {Diff}
+ */
 function toComponentMetricDiff(component, componentMetricResponse) {
-  return {
+  let measures = componentMetricResponse.measures.filter(it => it.history.length).reduce((a, b) => {
+    const result = {...a};
+
+    const oldEntry = b.history[0];
+    const newEntry = b.history[b.history.length - 1];
+    const deltaAbsolute = (newEntry?.value && oldEntry?.value) ?
+      newEntry.value - oldEntry.value
+      : undefined
+
+    result[b.metric] = {
+      oldEntry,
+      newEntry,
+      deltaAbsolute,
+      deltaRelative: deltaAbsolute ? (100 * deltaAbsolute / oldEntry.value) : undefined
+    }
+    return result
+  }, {});
+
+  const metricDiff = {
     componentKey: component.key,
     componentName: component.name,
-    measures: componentMetricResponse.measures.reduce((a, b) => {
-      const result = {...a};
-
-      const oldEntry = b.history[0];
-      const newEntry = b.history[b.history.length - 1];
-      const deltaAbsolute = newEntry?.value - oldEntry?.value
-
-      result[b.metric] = {
-        oldEntry,
-        newEntry,
-        deltaAbsolute,
-        deltaRelative: deltaAbsolute ? (100 * deltaAbsolute / oldEntry.value) : undefined
-      }
-      return result
-    }, {})
+    measures
   };
+
+  addSqualeIndexPer1000Loc(metricDiff);
+
+  return metricDiff;
 }
 
 /**
@@ -109,28 +199,23 @@ function showTopTechnicalPer1000LinesOfCodeFor(diffs) {
   console.log(`=== Top ${topCount} Technical Dept (Squale Index) per 1000 Lines of Code ===`)
   diffs
     .filter(it => hasTechnicalDept(it))
-    .map(it => {
-      it.measures.sqale_index.newEntry.valuePer1000Loc = it.measures.sqale_index.newEntry.value
-        / it.measures.ncloc.newEntry.value * 1000
-      it.measures.sqale_index.oldEntry.valuePer1000Loc = it.measures.sqale_index.oldEntry.value
-        / it.measures.ncloc.oldEntry.value * 1000
-      return it
-    })
     .sort(
-      (a, b) => a.measures?.sqale_index?.newEntry?.valuePer1000Loc
-        - b.measures?.sqale_index?.newEntry?.valuePer1000Loc)
+      (a, b) => a.measures?.sqale_indexPer1000Loc?.newEntry?.value
+        - b.measures?.sqale_indexPer1000Loc?.newEntry?.value)
     .slice(0, topCount)
-    .forEach((it, index) => console.log(
-      `${index + 1}: "${it.componentName}" - "${it.componentKey}"
-\t ${it.measures.sqale_index.newEntry.valuePer1000Loc.toFixed(
-        2)} - @${it.measures.sqale_index.newEntry.date.substring(
-        0,
-        10)}
-\t ${it.measures.sqale_index.oldEntry.valuePer1000Loc.toFixed(
-        2)} - @${it.measures.sqale_index.oldEntry.date.substring(
-        0,
-        10)}
-\t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${it.componentKey}`))
+    .forEach((it, index) => {
+      console.log(
+        `${index + 1}: "${it.componentName}" - "${it.componentKey}"
+  \t ${it.measures.sqale_indexPer1000Loc.newEntry.value.toFixed(
+          2)} - @${it.measures.sqale_indexPer1000Loc.newEntry.date.substring(
+          0,
+          10)}
+  \t ${it.measures.sqale_indexPer1000Loc.oldEntry.value.toFixed(
+          2)} - @${it.measures.sqale_indexPer1000Loc.oldEntry.date.substring(
+          0,
+          10)}
+  \t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${it.componentKey}`);
+    })
 }
 
 /**
@@ -203,13 +288,15 @@ function showRanks(diffs) {
   console.log(`Loading components metrics from ${threeMonthAgo()}`)
 
   fetchAllComponents()
-    .then(components => components
+    .then(components => shuffle(components)
       .forEach(component =>
         fetchMetricsFor(component)
           .then(componentMetricResponse =>
             toComponentMetricDiff(component, componentMetricResponse))
-          .then(newDiff => {
-            currentDiffs = [...currentDiffs, newDiff]
+          .then(diff => {
+            if (diff.measures) {
+              currentDiffs = [...currentDiffs, diff]
+            }
           })
           .then(() => showRanks(currentDiffs))
           .catch(console.error)
