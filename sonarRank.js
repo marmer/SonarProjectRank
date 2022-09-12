@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sonar Project Rank
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      0.2
 // @description  Prints project ranks and improvements based on changes within the last 90 days
 // @author       MarMer
 // @updateURL    https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
@@ -12,7 +12,7 @@
 // @grant        none
 // ==/UserScript==
 
-const metrics = ["sqale_index", "coverage"]
+const metrics = ["sqale_index", "ncloc"]
 const topCount = 5;
 
 function threeMonthAgo() {
@@ -25,7 +25,7 @@ function threeMonthAgo() {
  *   componentKey: String,
  *   componentName: String,
  *   measures: {
- *   coverage: {
+ *    sqale_index: {
  *      deltaAbsolute: Number,
  *      deltaRelative: Number,
  *      oldEntry: {
@@ -37,7 +37,7 @@ function threeMonthAgo() {
  *        value: Number
  *      }
  *    },
- *    sqale_index: {
+ *    ncloc: {
  *      deltaAbsolute: Number,
  *      deltaRelative: Number,
  *      oldEntry: {
@@ -98,54 +98,38 @@ function toComponentMetricDiff(component, componentMetricResponse) {
 /**
  * @param {Diff} diff
  */
-function hasCoverage(diff) {
-  return diff.measures?.coverage?.newEntry?.value;
+function hasTechnicalDept(diff) {
+  return diff.measures?.sqale_index?.newEntry?.value;
 }
 
 /**
  * @param {Diff[]} diffs
  */
-function showTopAbsoluteCoverageFor(diffs) {
-  console.log(`=== Top ${topCount} Coverage ===`)
+function showTopTechnicalPer1000LinesOfCodeFor(diffs) {
+  console.log(`=== Top ${topCount} Technical Dept (Squale Index) per 1000 Lines of Code ===`)
   diffs
-    .filter(it => hasCoverage(it))
-    .sort((a, b) => b.measures?.coverage?.newEntry?.value - a.measures?.coverage?.newEntry?.value)
+    .filter(it => hasTechnicalDept(it))
+    .map(it => {
+      it.measures.sqale_index.newEntry.valuePer1000Loc = it.measures.sqale_index.newEntry.value
+        / it.measures.ncloc.newEntry.value * 1000
+      it.measures.sqale_index.oldEntry.valuePer1000Loc = it.measures.sqale_index.oldEntry.value
+        / it.measures.ncloc.oldEntry.value * 1000
+      return it
+    })
+    .sort(
+      (a, b) => a.measures?.sqale_index?.newEntry?.valuePer1000Loc
+        - b.measures?.sqale_index?.newEntry?.valuePer1000Loc)
     .slice(0, topCount)
     .forEach((it, index) => console.log(
       `${index + 1}: "${it.componentName}" - "${it.componentKey}"
-\t ${it.measures.coverage.newEntry.value}% - @${it.measures.coverage.newEntry.date.substring(0,
+\t ${it.measures.sqale_index.newEntry.valuePer1000Loc.toFixed(
+        2)} - @${it.measures.sqale_index.newEntry.date.substring(
+        0,
         10)}
-\t ${it.measures.coverage.oldEntry.value}% - @${it.measures.coverage.oldEntry.date.substring(0,
+\t ${it.measures.sqale_index.oldEntry.valuePer1000Loc.toFixed(
+        2)} - @${it.measures.sqale_index.oldEntry.date.substring(
+        0,
         10)}
-\t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${it.componentKey}`))
-}
-
-/**
- * @param {Diff[]} diffs
- */
-function showTopCoverageImprovementFor(diffs) {
-  console.log(`=== Top ${topCount} Coverage Improvement ===`)
-
-  diffs
-    .filter(it => hasCoverage(it) && it.measures.coverage.deltaAbsolute)
-    .sort((a, b) => {
-        return b.measures?.coverage?.deltaRelative - a.measures?.coverage?.deltaRelative;
-      }
-    )
-    .slice(0, topCount)
-    .forEach((it, index) => console.log(`${index + 1}: "${it.componentName}" - "${it.componentKey}"
-\t ${it.measures?.coverage?.deltaRelative.toFixed(
-      1)}% changed relative to ${it.measures.coverage.newEntry.date.substring(
-      0,
-      10)}
-\t ${it.measures?.coverage?.deltaAbsolute.toFixed(
-      1)}% changed absolute to ${it.measures.coverage.newEntry.date.substring(
-      0,
-      10)}
-\t ${it.measures.coverage.newEntry.value}% - @${it.measures.coverage.newEntry.date.substring(0,
-      10)}
-\t ${it.measures.coverage.oldEntry.value}% - @${it.measures.coverage.oldEntry.date.substring(0,
-      10)}
 \t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${it.componentKey}`))
 }
 
@@ -155,7 +139,7 @@ function showTopCoverageImprovementFor(diffs) {
 function showTopAbsoluteTechnicalDeptFor(diffs) {
   console.log(`=== Top ${topCount} Technical Dept (Squale Index) ===`)
   diffs
-    .filter(it => hasCoverage(it))
+    .filter(it => hasTechnicalDept(it))
     .sort(
       (a, b) => a.measures?.sqale_index?.newEntry?.value - b.measures?.sqale_index?.newEntry?.value)
     .slice(0, topCount)
@@ -174,10 +158,10 @@ function showTopAbsoluteTechnicalDeptFor(diffs) {
  * @param {Diff[]} diffs
  */
 function showTopTechnicalDeptImprovementFor(diffs) {
-  console.log(`=== Top ${topCount} Coverage Improvement ===`)
+  console.log(`=== Top ${topCount} Technical Dept (Squale Index) Improvement ===`)
 
   diffs
-    .filter(it => hasCoverage(it) && it.measures.sqale_index.deltaAbsolute)
+    .filter(it => hasTechnicalDept(it) && it.measures.sqale_index.deltaAbsolute)
     .sort((a, b) => {
         return a.measures?.sqale_index?.deltaRelative - b.measures?.sqale_index?.deltaRelative;
       }
@@ -206,8 +190,7 @@ function showTopTechnicalDeptImprovementFor(diffs) {
 function showRanks(diffs) {
   console.clear()
   console.log(`This Script shows only Projects with changes since ${threeMonthAgo()}`)
-  showTopAbsoluteCoverageFor(diffs);
-  showTopCoverageImprovementFor(diffs);
+  showTopTechnicalPer1000LinesOfCodeFor(diffs);
   showTopAbsoluteTechnicalDeptFor(diffs);
   showTopTechnicalDeptImprovementFor(diffs);
 }
