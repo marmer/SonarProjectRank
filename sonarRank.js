@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sonar Project Rank
 // @namespace    http://tampermonkey.net/
-// @version      0.2
+// @version      0.3
 // @description  Prints project ranks and improvements based on changes within the last 90 days
 // @author       MarMer
 // @updateURL    https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
@@ -101,7 +101,7 @@ function metricsUriComponent() {
 /**
  *
  * @param {IncompleteDiff} metricDiff
- * @returns {Diff}
+ * @returns {Diff | void}
  */
 function addSqualeIndexPer1000Loc(metricDiff) {
 
