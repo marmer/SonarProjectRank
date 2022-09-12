@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sonar Project Rank
 // @namespace    http://tampermonkey.net/
-// @version      0.3
+// @version      0.5
 // @description  Prints project ranks and improvements based on changes within the last 90 days
 // @author       MarMer
 // @updateURL    https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
@@ -131,11 +131,10 @@ function addSqualeIndexPer1000Loc(metricDiff) {
 
   const deltaRelativePer1000Loc = deltaAbsolutePer1000Loc ?
     (100 * deltaAbsolutePer1000Loc / oldValuePer1000Loc) :
-    undefined
+    0
 
   metricDiff.measures.sqale_indexPer1000Loc = {
-    deltaAbsolute: metricDiff.measures.sqale_index.newEntry.valuePer1000Loc
-      - metricDiff.measures.sqale_index.oldEntry.valuePer1000Loc,
+    deltaAbsolute: deltaAbsolutePer1000Loc,
     deltaRelative: deltaRelativePer1000Loc,
     oldEntry: {
       date: metricDiff
@@ -192,30 +191,43 @@ function hasTechnicalDept(diff) {
   return diff.measures?.sqale_index?.newEntry?.value;
 }
 
+function printRankedDiffEntry(rank, diff, diffEntry) {
+  console.log(`${rank}: "${diff.componentName}" - "${diff.componentKey}"
+\t ${diffEntry.newEntry.value.toFixed(
+    2)} - @${diffEntry.newEntry.date.substring(
+    0,
+    10)}
+\t ${diffEntry.oldEntry.value.toFixed(
+    2)} - @${diffEntry.oldEntry.date.substring(
+    0,
+    10)}
+\t ${diffEntry.deltaAbsolute.toFixed(2)} - absolute improvement
+\t ${diffEntry.deltaRelative.toFixed(
+    2)} - improvement relative to ${diffEntry.oldEntry.date.substring(
+    0,
+    10)}
+\t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${diff.componentKey}`);
+}
+
+function printRankedDiff(diff, index) {
+  const rank = index + 1;
+  const diffEntry = diff.measures.sqale_indexPer1000Loc;
+  printRankedDiffEntry(rank, diff, diffEntry);
+}
+
 /**
  * @param {Diff[]} diffs
  */
-function showTopTechnicalPer1000LinesOfCodeFor(diffs) {
-  console.log(`=== Top ${topCount} Technical Dept (Squale Index) per 1000 Lines of Code ===`)
+function showTop5(diffs, header, sortKeyProvider) {
+  console.log(`=== Top ${topCount} ${header} ===`)
+
   diffs
     .filter(it => hasTechnicalDept(it))
-    .sort(
-      (a, b) => a.measures?.sqale_indexPer1000Loc?.newEntry?.value
-        - b.measures?.sqale_indexPer1000Loc?.newEntry?.value)
-    .slice(0, topCount)
-    .forEach((it, index) => {
-      console.log(
-        `${index + 1}: "${it.componentName}" - "${it.componentKey}"
-  \t ${it.measures.sqale_indexPer1000Loc.newEntry.value.toFixed(
-          2)} - @${it.measures.sqale_indexPer1000Loc.newEntry.date.substring(
-          0,
-          10)}
-  \t ${it.measures.sqale_indexPer1000Loc.oldEntry.value.toFixed(
-          2)} - @${it.measures.sqale_indexPer1000Loc.oldEntry.date.substring(
-          0,
-          10)}
-  \t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${it.componentKey}`);
+    .sort((a, b) => {
+      return sortKeyProvider(a) - sortKeyProvider(b);
     })
+    .slice(0, topCount)
+    .forEach(printRankedDiff)
 }
 
 /**
@@ -228,15 +240,7 @@ function showTopAbsoluteTechnicalDeptFor(diffs) {
     .sort(
       (a, b) => a.measures?.sqale_index?.newEntry?.value - b.measures?.sqale_index?.newEntry?.value)
     .slice(0, topCount)
-    .forEach((it, index) => console.log(
-      `${index + 1}: "${it.componentName}" - "${it.componentKey}"
-\t ${it.measures.sqale_index.newEntry.value} - @${it.measures.sqale_index.newEntry.date.substring(
-        0,
-        10)}
-\t ${it.measures.sqale_index.oldEntry.value} - @${it.measures.sqale_index.oldEntry.date.substring(
-        0,
-        10)}
-\t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${it.componentKey}`))
+    .forEach(printRankedDiff)
 }
 
 /**
@@ -252,21 +256,7 @@ function showTopTechnicalDeptImprovementFor(diffs) {
       }
     )
     .slice(0, topCount)
-    .forEach((it, index) => console.log(`${index + 1}: "${it.componentName}" - "${it.componentKey}"
-\t ${it.measures?.sqale_index?.deltaRelative.toFixed(
-      1)}% changed relative to ${it.measures.sqale_index.newEntry.date.substring(
-      0,
-      10)}
-\t ${it.measures?.sqale_index?.deltaAbsolute} changed absolute to ${it.measures.sqale_index.newEntry.date.substring(
-      0,
-      10)}
-\t ${it.measures.sqale_index.newEntry.value} - @${it.measures.sqale_index.newEntry.date.substring(
-      0,
-      10)}
-\t ${it.measures.sqale_index.oldEntry.value} - @${it.measures.sqale_index.oldEntry.date.substring(
-      0,
-      10)}
-\t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${it.componentKey}`))
+    .forEach(printRankedDiff)
 }
 
 /**
@@ -275,9 +265,14 @@ function showTopTechnicalDeptImprovementFor(diffs) {
 function showRanks(diffs) {
   console.clear()
   console.log(`This Script shows only Projects with changes since ${threeMonthAgo()}`)
-  showTopTechnicalPer1000LinesOfCodeFor(diffs);
-  showTopAbsoluteTechnicalDeptFor(diffs);
-  showTopTechnicalDeptImprovementFor(diffs);
+  showTop5(diffs,
+    `Technical Dept (Squale Index) per 1000 Lines of Code`,
+    (diff) =>
+      diff.measures.sqale_indexPer1000Loc.newEntry.value);
+  showTop5(diffs,
+    `Technical Dept (Squale Index) per 1000 Lines of Code Improvement`,
+    (diff) =>
+      diff.measures.sqale_indexPer1000Loc.deltaRelative);
 }
 
 (function () {
