@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sonar Project Rank
 // @namespace    http://tampermonkey.net/
-// @version      0.5
+// @version      0.6
 // @description  Prints project ranks and improvements based on changes within the last 90 days
 // @author       MarMer
 // @updateURL    https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
@@ -217,8 +217,10 @@ function printRankedDiff(diff, index) {
 
 /**
  * @param {Diff[]} diffs
+ * @param {string} header Description of what to print the top 5 of
+ * @param {(Diff) => Number} sortKeyProvider Selector of the key to use for comparison
  */
-function showTop5(diffs, header, sortKeyProvider) {
+function showTop5ByKeySelector(diffs, header, sortKeyProvider) {
   console.log(`=== Top ${topCount} ${header} ===`)
 
   diffs
@@ -233,43 +235,14 @@ function showTop5(diffs, header, sortKeyProvider) {
 /**
  * @param {Diff[]} diffs
  */
-function showTopAbsoluteTechnicalDeptFor(diffs) {
-  console.log(`=== Top ${topCount} Technical Dept (Squale Index) ===`)
-  diffs
-    .filter(it => hasTechnicalDept(it))
-    .sort(
-      (a, b) => a.measures?.sqale_index?.newEntry?.value - b.measures?.sqale_index?.newEntry?.value)
-    .slice(0, topCount)
-    .forEach(printRankedDiff)
-}
-
-/**
- * @param {Diff[]} diffs
- */
-function showTopTechnicalDeptImprovementFor(diffs) {
-  console.log(`=== Top ${topCount} Technical Dept (Squale Index) Improvement ===`)
-
-  diffs
-    .filter(it => hasTechnicalDept(it) && it.measures.sqale_index.deltaAbsolute)
-    .sort((a, b) => {
-        return a.measures?.sqale_index?.deltaRelative - b.measures?.sqale_index?.deltaRelative;
-      }
-    )
-    .slice(0, topCount)
-    .forEach(printRankedDiff)
-}
-
-/**
- * @param {Diff[]} diffs
- */
 function showRanks(diffs) {
   console.clear()
   console.log(`This Script shows only Projects with changes since ${threeMonthAgo()}`)
-  showTop5(diffs,
+  showTop5ByKeySelector(diffs,
     `Technical Dept (Squale Index) per 1000 Lines of Code`,
     (diff) =>
       diff.measures.sqale_indexPer1000Loc.newEntry.value);
-  showTop5(diffs,
+  showTop5ByKeySelector(diffs,
     `Technical Dept (Squale Index) per 1000 Lines of Code Improvement`,
     (diff) =>
       diff.measures.sqale_indexPer1000Loc.deltaRelative);
