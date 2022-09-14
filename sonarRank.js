@@ -132,7 +132,7 @@ function addAffordToFixInHoursPer1000Loc(metricDiff) {
       +
       metricDiff.measures.security_remediation_effort.oldEntry.value
       +
-      metricDiff.measures.security_hotspots.oldEntry.value * 60
+      metricDiff.measures.security_hotspots.oldEntry.value * 15 //15 min
     ) /
     metricDiff.measures.ncloc.oldEntry.value * 1000 // per 1000 Lines of Code
     / 60 //hours
@@ -145,7 +145,7 @@ function addAffordToFixInHoursPer1000Loc(metricDiff) {
       +
       metricDiff.measures.security_remediation_effort.newEntry.value
       +
-      metricDiff.measures.security_hotspots.newEntry.value * 60
+      metricDiff.measures.security_hotspots.newEntry.value * 15
     ) /
     metricDiff.measures.ncloc.newEntry.value * 1000  // per 1000 Lines of Code
     / 60 //hours
@@ -215,14 +215,14 @@ function printRankedDiffEntry(rank, diff, diffEntry) {
     maximumFractionDigits: 2
   })} h/1000LOC - @${diffEntry.newEntry.date.substring(
     0,
-    10)}
+    10)} - ${diff.measures.ncloc.newEntry.value.toLocaleString("de-DE")} loc
 \t ${diffEntry.oldEntry.value.toLocaleString("de-DE", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })} h/1000LOC - @${diffEntry.oldEntry.date.substring(
     0,
-    10)}
-\t ${diffEntry.deltaAbsolute.toFixed(2).toLocaleString("de-DE",
+    10)} - ${diff.measures.ncloc.oldEntry.value.toLocaleString("de-DE")} loc
+\t ${diffEntry.deltaAbsolute.toLocaleString("de-DE",
     {minimumFractionDigits: 2, maximumFractionDigits: 2})} h/1000LOC - absolute improvement
 \t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${diff.componentKey}`);
 }
