@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sonar Project Rank
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.8
 // @description  Prints project ranks and improvements based on changes within the last 90 days
 // @author       MarMer
 // @updateURL    https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
@@ -132,7 +132,7 @@ function addAffordToFixInHoursPer1000Loc(metricDiff) {
       +
       metricDiff.measures.security_remediation_effort.oldEntry.value
       +
-      metricDiff.measures.security_hotspots.oldEntry.value * 15 //15 min
+      metricDiff.measures.security_hotspots.oldEntry.value * 60 //60 min
     ) /
     metricDiff.measures.ncloc.oldEntry.value * 1000 // per 1000 Lines of Code
     / 60 //hours
@@ -145,7 +145,7 @@ function addAffordToFixInHoursPer1000Loc(metricDiff) {
       +
       metricDiff.measures.security_remediation_effort.newEntry.value
       +
-      metricDiff.measures.security_hotspots.newEntry.value * 15
+      metricDiff.measures.security_hotspots.newEntry.value * 60 //60 min
     ) /
     metricDiff.measures.ncloc.newEntry.value * 1000  // per 1000 Lines of Code
     / 60 //hours
@@ -179,12 +179,12 @@ function toComponentMetricDiff(component, componentMetricResponse) {
     const oldEntry = b.history[0];
     const newEntry = b.history[b.history.length - 1];
     const deltaAbsolute = (newEntry?.value && oldEntry?.value) ?
-      newEntry.value - oldEntry.value
+      Number(newEntry.value) - Number(oldEntry.value)
       : undefined
 
     result[b.metric] = {
-      oldEntry,
-      newEntry,
+      oldEntry: {...oldEntry, value: Number(oldEntry.value)},
+      newEntry: {...newEntry, value: Number(newEntry.value)},
       deltaAbsolute,
     }
     return result
@@ -205,9 +205,15 @@ function toComponentMetricDiff(component, componentMetricResponse) {
  * @param {Diff} diff
  */
 function hasTechnicalDept(diff) {
-  return diff.measures?.sqale_index?.newEntry?.value;
+  return diff.measures?.sqale_index?.newEntry;
 }
 
+/**
+ *
+ * @param {Number} rank
+ * @param {Diff} diff
+ * @param {DiffEntry} diffEntry
+ */
 function printRankedDiffEntry(rank, diff, diffEntry) {
   const minimumIntegerDigits = Math.max(diffEntry.newEntry.value.toFixed(0).length,
     diffEntry.oldEntry.value.toFixed(0).length)
