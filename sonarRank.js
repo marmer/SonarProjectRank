@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sonar Project Rank
 // @namespace    http://tampermonkey.net/
-// @version      0.6
+// @version      0.7
 // @description  Prints project ranks and improvements based on changes within the last 90 days
 // @author       MarMer
 // @updateURL    https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
@@ -12,8 +12,14 @@
 // @grant        none
 // ==/UserScript==
 
-const metrics = ["sqale_index", "ncloc"]
-const topCount = 5;
+const metrics = [
+  "sqale_index",
+  "reliability_remediation_effort",
+  "security_remediation_effort",
+  "security_hotspots",
+  "ncloc",
+]
+const topCount = 10;
 
 function threeMonthAgo() {
   return dateFns.format(dateFns.subDays(new Date(), 90), "YYYY-MM-DD")
@@ -36,7 +42,6 @@ function shuffle(a) {
  * @typedef {
  *   {
  *      deltaAbsolute: Number,
- *      deltaRelative: Number,
  *      oldEntry: {
  *        date: String,
  *        value: Number,
@@ -57,7 +62,10 @@ function shuffle(a) {
  *    componentName: String,
  *    measures: {
  *    sqale_index: DiffEntry,
- *    sqale_indexPer1000Loc: DiffEntry,
+ *    affordToFixInHoursPer1000Lines: DiffEntry,
+ *    reliability_remediation_effort: DiffEntry,
+ *    security_remediation_effort: DiffEntry,
+ *    security_hotspots: DiffEntry,
  *    ncloc: DiffEntry
  *    }?
  *  }
@@ -72,6 +80,9 @@ function shuffle(a) {
  *    componentName: String,
  *    measures: {
  *    sqale_index: DiffEntry,
+ *    reliability_remediation_effort: DiffEntry,
+ *    security_remediation_effort: DiffEntry,
+ *    security_hotspots: DiffEntry,
  *    ncloc: DiffEntry
  *    }?
  *  }
@@ -98,44 +109,51 @@ function metricsUriComponent() {
   return encodeURIComponent(metrics.reduce((a, b) => `${a},${b}`));
 }
 
+function wasAnalized(metricDiff) {
+  return metricDiff?.measures?.sqale_index && metricDiff?.measures?.ncloc;
+}
+
 /**
  *
  * @param {IncompleteDiff} metricDiff
  * @returns {Diff | void}
  */
-function addSqualeIndexPer1000Loc(metricDiff) {
+function addAffordToFixInHoursPer1000Loc(metricDiff) {
 
-  if (!(metricDiff?.measures?.sqale_index && metricDiff?.measures?.ncloc)) {
+  if (!wasAnalized(metricDiff)) {
     return
   }
 
   const oldValuePer1000Loc =
-    (metricDiff?.measures?.sqale_index?.oldEntry?.value &&
-      metricDiff?.measures?.ncloc?.oldEntry?.value)
-      ?
-      metricDiff.measures.sqale_index.oldEntry.value /
-      metricDiff.measures.ncloc.oldEntry.value * 1000
-      :
-      undefined
+    (
+      metricDiff.measures.sqale_index.oldEntry.value
+      +
+      metricDiff.measures.reliability_remediation_effort.oldEntry.value
+      +
+      metricDiff.measures.security_remediation_effort.oldEntry.value
+      +
+      metricDiff.measures.security_hotspots.oldEntry.value * 60
+    ) /
+    metricDiff.measures.ncloc.oldEntry.value * 1000 // per 1000 Lines of Code
+    / 60 //hours
 
   const newValuePer1000Loc =
-    (metricDiff?.measures?.sqale_index?.newEntry?.value
-      && metricDiff?.measures?.ncloc?.newEntry?.value)
-      ?
-      metricDiff.measures.sqale_index.newEntry.value /
-      metricDiff.measures.ncloc.newEntry.value * 1000
-      :
-      undefined
+    (
+      metricDiff.measures.sqale_index.newEntry.value
+      +
+      metricDiff.measures.reliability_remediation_effort.newEntry.value
+      +
+      metricDiff.measures.security_remediation_effort.newEntry.value
+      +
+      metricDiff.measures.security_hotspots.newEntry.value * 60
+    ) /
+    metricDiff.measures.ncloc.newEntry.value * 1000  // per 1000 Lines of Code
+    / 60 //hours
 
   const deltaAbsolutePer1000Loc = newValuePer1000Loc - oldValuePer1000Loc
 
-  const deltaRelativePer1000Loc = deltaAbsolutePer1000Loc ?
-    (100 * deltaAbsolutePer1000Loc / oldValuePer1000Loc) :
-    0
-
-  metricDiff.measures.sqale_indexPer1000Loc = {
+  metricDiff.measures.affordToFixInHoursPer1000Lines = {
     deltaAbsolute: deltaAbsolutePer1000Loc,
-    deltaRelative: deltaRelativePer1000Loc,
     oldEntry: {
       date: metricDiff
         .measures.sqale_index.oldEntry.date,
@@ -168,7 +186,6 @@ function toComponentMetricDiff(component, componentMetricResponse) {
       oldEntry,
       newEntry,
       deltaAbsolute,
-      deltaRelative: deltaAbsolute ? (100 * deltaAbsolute / oldEntry.value) : undefined
     }
     return result
   }, {});
@@ -179,7 +196,7 @@ function toComponentMetricDiff(component, componentMetricResponse) {
     measures
   };
 
-  addSqualeIndexPer1000Loc(metricDiff);
+  addAffordToFixInHoursPer1000Loc(metricDiff);
 
   return metricDiff;
 }
@@ -202,16 +219,12 @@ function printRankedDiffEntry(rank, diff, diffEntry) {
     0,
     10)}
 \t ${diffEntry.deltaAbsolute.toFixed(2)} - absolute improvement
-\t ${diffEntry.deltaRelative.toFixed(
-    2)} - improvement relative to ${diffEntry.oldEntry.date.substring(
-    0,
-    10)}
 \t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${diff.componentKey}`);
 }
 
 function printRankedDiff(diff, index) {
   const rank = index + 1;
-  const diffEntry = diff.measures.sqale_indexPer1000Loc;
+  const diffEntry = diff.measures.affordToFixInHoursPer1000Lines;
   printRankedDiffEntry(rank, diff, diffEntry);
 }
 
@@ -239,13 +252,13 @@ function showRanks(diffs) {
   console.clear()
   console.log(`This Script shows only Projects with changes since ${threeMonthAgo()}`)
   showTop5ByKeySelector(diffs,
-    `Technical Dept (Squale Index) per 1000 Lines of Code`,
+    `Afford to Fix All Issues in Minutes per per 1000 Lines of Code`,
     (diff) =>
-      diff.measures.sqale_indexPer1000Loc.newEntry.value);
+      diff.measures.affordToFixInHoursPer1000Lines.newEntry.value);
   showTop5ByKeySelector(diffs,
-    `Technical Dept (Squale Index) per 1000 Lines of Code Improvement`,
+    `Afford to Fix All Issues in Minutes per per 1000 Lines of Code Improvement`,
     (diff) =>
-      diff.measures.sqale_indexPer1000Loc.deltaRelative);
+      diff.measures.affordToFixInHoursPer1000Lines.deltaAbsolute);
 }
 
 (function () {
