@@ -211,14 +211,14 @@ function hasTechnicalDept(diff) {
 function printRankedDiffEntry(rank, diff, diffEntry) {
   console.log(`${rank}: "${diff.componentName}" - "${diff.componentKey}"
 \t ${diffEntry.newEntry.value.toFixed(
-    2)} - @${diffEntry.newEntry.date.substring(
+    2)}h - @${diffEntry.newEntry.date.substring(
     0,
     10)}
 \t ${diffEntry.oldEntry.value.toFixed(
-    2)} - @${diffEntry.oldEntry.date.substring(
+    2)}h - @${diffEntry.oldEntry.date.substring(
     0,
     10)}
-\t ${diffEntry.deltaAbsolute.toFixed(2)} - absolute improvement
+\t ${diffEntry.deltaAbsolute.toFixed(2)}h - absolute improvement
 \t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${diff.componentKey}`);
 }
 
