@@ -209,21 +209,30 @@ function hasTechnicalDept(diff) {
 }
 
 function printRankedDiffEntry(rank, diff, diffEntry) {
+  const minimumIntegerDigits = Math.max(diffEntry.newEntry.value.toFixed(0).length,
+    diffEntry.oldEntry.value.toFixed(0).length)
   console.log(`${rank}: "${diff.componentName}" - "${diff.componentKey}"
 \t ${diffEntry.newEntry.value.toLocaleString("de-DE", {
+    minimumIntegerDigits,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })} h/1000LOC - @${diffEntry.newEntry.date.substring(
     0,
     10)} - ${diff.measures.ncloc.newEntry.value.toLocaleString("de-DE")} loc
 \t ${diffEntry.oldEntry.value.toLocaleString("de-DE", {
+    minimumIntegerDigits,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })} h/1000LOC - @${diffEntry.oldEntry.date.substring(
     0,
     10)} - ${diff.measures.ncloc.oldEntry.value.toLocaleString("de-DE")} loc
-\t ${diffEntry.deltaAbsolute.toLocaleString("de-DE",
-    {minimumFractionDigits: 2, maximumFractionDigits: 2})} h/1000LOC - absolute improvement
+\t${diffEntry.deltaAbsolute < 0 ? "-" : " "}${Math.abs(diffEntry.deltaAbsolute).toLocaleString(
+    "de-DE",
+    {
+      minimumIntegerDigits,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })} h/1000LOC - absolute improvement
 \t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${diff.componentKey}`);
 }
 
