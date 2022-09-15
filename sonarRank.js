@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sonar Project Rank
 // @namespace    http://tampermonkey.net/
-// @version      0.8
+// @version      0.9
 // @description  Prints project ranks and improvements based on changes within the last 90 days
 // @author       MarMer
 // @updateURL    https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
@@ -234,7 +234,7 @@ function printRankedDiffEntry(rank, diff, diffEntry) {
     10)} - ${diff.measures.ncloc.oldEntry.value.toLocaleString("de-DE")} loc
 \t${diffEntry.deltaAbsolute < 0 ? "-" : " "}${Math.abs(diffEntry.deltaAbsolute).toLocaleString(
     "de-DE",
-    formatOptions)} h/1000LOC - absolute improvement
+    formatOptions)} h/1000LOC - change
 \t https://sonar.prod.ccs.gematik.solutions/dashboard?id=${diff.componentKey}`);
 }
 
