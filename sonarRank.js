@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sonar Project Rank
 // @namespace    http://tampermonkey.net/
-// @version      0.10
+// @version      0.11
 // @description  Prints project ranks and improvements based on changes within the last 90 days
 // @author       MarMer
 // @updateURL    https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
@@ -22,7 +22,7 @@ const metrics = [
 const topCount = 5;
 
 function threeMonthAgo() {
-  return dateFns.format(dateFns.subDays(new Date(), 90), "YYYY-MM-DD")
+  return dateFns.format(dateFns.subDays(new Date(), 30), "YYYY-MM-DD")
 }
 
 /**
