@@ -19,7 +19,7 @@ const metrics = [
   "security_hotspots",
   "ncloc",
 ]
-const topCount = 10;
+const topCount = 5;
 
 function threeMonthAgo() {
   return dateFns.format(dateFns.subDays(new Date(), 90), "YYYY-MM-DD")
