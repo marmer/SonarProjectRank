@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sonar Project Rank
 // @namespace    http://tampermonkey.net/
-// @version      0.9
+// @version      0.10
 // @description  Prints project ranks and improvements based on changes within the last 90 days
 // @author       MarMer
 // @updateURL    https://raw.githubusercontent.com/marmer/SonarProjectRank/master/sonarRank.js
